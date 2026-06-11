@@ -1,77 +1,124 @@
-﻿using RimWorld;
+using RimWorld;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Xml;
-using UnityEngine.UIElements;
 using Verse;
 
 namespace Smartgene
 {
     [StaticConstructorOnStartup]
-    public class StartUp
+    public static class StartUp
     {
         static StartUp()
         {
-            Smartgene spine = new Smartgene(); // Create an instance of the Smartgene class on startup
+            Smartgene.GenerateGenes();
         }
     }
 
-    public class Smartgene
+    public static class Smartgene
     {
-        List<GeneDef> generatedGenes = new List<GeneDef>(); // Create a list to store generated GeneDefs
+        // Prefix all generated defNames to avoid collisions with other mods
+        private const string DEF_PREFIX = "SG_ForcedTrait_";
+        // A high starting order pushes these genes to the bottom of the gene picker,
+        // below cosmetic and other standard genes which typically use lower values.
+        private const int BASE_DISPLAY_ORDER = 404;
+        private const int DISPLAY_ORDER_STEP = 10;
 
-        public Smartgene()
+        public static void GenerateGenes()
         {
-            Log.Message("Smart Gene is generating genes"); // Log a message indicating gene generation is in progress
-            int x = 404;
-            GeneCategoryDef SGFT = new GeneCategoryDef(); // Create a new GeneCategoryDef object
-            SGFT.defName = "Smart_Genes_ForcedTraits"; // Set the definition name for the gene category
-            SGFT.label = "SmartGenes : Forced Traits";
-            SGFT.description = "A collection of Genes used to guarantee that a pawn will have a specific trait."; // Set the description of the gene category
-            SGFT.displayPriorityInGenepack = -1000;
-            SGFT.displayPriorityInXenotype = 1000;
-            Verse.DefDatabase<GeneCategoryDef>.Add(SGFT);
-            // Loop through all TraitDefs in the game
-            foreach (TraitDef trait in Verse.DefDatabase<TraitDef>.AllDefs)
-            {
-                try
-                {
-                    //Log.Message("Generating Gene for " + trait); // Log a message for each trait being processed
+            Log.Message("[SmartGenes] Generating forced-trait genes...");
 
-                    GeneDef Smart = new GeneDef(); // Create a new GeneDef object for the current trait
-                    List<Verse.GeneticTraitData> bob = new List<Verse.GeneticTraitData>(); // Create a list for the trait because forced traits needs a list
-                    GeneticTraitData traitData = new GeneticTraitData();
-                    traitData.def = trait;
-                    traitData.degree = 0;
-                    bob.Add(traitData);
-                    Smart.defName = trait.defName; // Set the definition name of the gene to the trait's definition name
-                    Smart.label = "Forced Trait: " + trait.defName; // Set the label of the gene
-                    Smart.displayCategory = SGFT; // Set the display category of the gene
-                    Smart.labelShortAdj = "forced " + trait.defName; // Set the short adjective label of the gene
-                    Smart.description = "Carriers of this gene always have the trait: " + trait.defName; // Set the description of the gene
-                    Smart.iconPath = "UI/forceT"; // Set the icon path of the gene
-                    Smart.forcedTraits = bob; // Set the forced traits of the gene
-                    Smart.biostatCpx = 1; // Set the complexity biostat of the gene
-                    Smart.biostatMet = 0; // Set the metabolism biostat of the gene
-                    Smart.biostatArc = 0; // Set the arcotech biostat of the gene
-                    Smart.displayOrderInCategory = x;
-                    generatedGenes.Add(Smart); // Add the generated GeneDef to the list of generated genes
-                    x += 10;
-                }
-                catch (Exception genedef){
-                    Log.Message(genedef);
-                }
-            }
-            foreach (GeneDef gene in generatedGenes)
+            GeneCategoryDef category = GetOrCreateCategory();
+
+            var genesToAdd = new List<GeneDef>();
+            int displayOrder = BASE_DISPLAY_ORDER;
+
+            foreach (TraitDef trait in DefDatabase<TraitDef>.AllDefs)
             {
-                if (!gene.generated)
-                { // checks to make sure that the gene does not already exist.
-                    Verse.DefDatabase<GeneDef>.Add(gene);
+                // TraitDef.degreeDatas is the list of all defined degrees for this trait.
+                // We generate one gene per degree so nothing gets skipped.
+                foreach (TraitDegreeData degreeData in trait.degreeDatas)
+                {
+                    try
+                    {
+                        string defName = $"{DEF_PREFIX}{trait.defName}_deg{degreeData.degree}";
+
+                        // Skip if this defName is already registered (e.g. loaded from a saved def)
+                        if (DefDatabase<GeneDef>.GetNamedSilentFail(defName) != null)
+                            continue;
+
+                        // Build a human-readable label.
+                        // If there's only one degree, just use the trait label.
+                        // If there are multiple, append the degree label so the user can tell them apart.
+                        string traitLabel = degreeData.label ?? trait.label ?? trait.defName;
+                        string geneLabel = trait.degreeDatas.Count > 1
+                            ? $"Forced Trait: {traitLabel}"
+                            : $"Forced Trait: {trait.label ?? trait.defName}";
+
+                        var traitLink = new GeneticTraitData
+                        {
+                            def = trait,
+                            degree = degreeData.degree
+                        };
+
+                        var gene = new GeneDef
+                        {
+                            defName = defName,
+                            label = geneLabel,
+                            description = $"Carriers of this gene always have the trait: {traitLabel}",
+                            labelShortAdj = $"forced {traitLabel}",
+                            iconPath = "UI/forceT",
+                            displayCategory = category,
+                            forcedTraits = new List<GeneticTraitData> { traitLink },
+                            biostatCpx = 1,
+                            biostatMet = 0,
+                            biostatArc = 0,
+                            displayOrderInCategory = displayOrder,
+                            // Prevents this gene from appearing in randomly generated
+                            // xenogerms and genepack loot. It remains fully selectable
+                            // in the xenotype editor.
+                            selectionWeight = 0
+                        };
+
+                        genesToAdd.Add(gene);
+                        displayOrder += DISPLAY_ORDER_STEP;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[SmartGenes] Failed to generate gene for trait '{trait.defName}' degree {degreeData.degree}: {ex}");
+                    }
                 }
             }
+
+            int added = 0;
+            foreach (GeneDef gene in genesToAdd)
+            {
+                DefDatabase<GeneDef>.Add(gene);
+                added++;
+            }
+
+            Log.Message($"[SmartGenes] Done. Generated {added} forced-trait genes.");
+        }
+
+        private static GeneCategoryDef GetOrCreateCategory()
+        {
+            const string categoryDefName = "SmartGenes_ForcedTraits";
+
+            // Return existing category if already registered (handles hot-reload edge cases)
+            GeneCategoryDef existing = DefDatabase<GeneCategoryDef>.GetNamedSilentFail(categoryDefName);
+            if (existing != null)
+                return existing;
+
+            var category = new GeneCategoryDef
+            {
+                defName = categoryDefName,
+                label = "SmartGenes: Forced Traits",
+                description = "Genes that guarantee a pawn will always have a specific trait.",
+                displayPriorityInGenepack = -1000,
+                displayPriorityInXenotype = 1000
+            };
+
+            DefDatabase<GeneCategoryDef>.Add(category);
+            return category;
         }
     }
 }
-
