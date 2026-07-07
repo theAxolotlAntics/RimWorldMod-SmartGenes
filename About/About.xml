@@ -8,10 +8,10 @@
   <description>
 Ever wanted your tortured artists to always be very neurotic and too smart? Now you can have that! Use genes to force traits and create a custom xenotype optimized to suffer. :D
 
-This mod dynamically scans every trait in your game — vanilla or modded — and generates a dedicated gene to force it. Multi-degree traits like Neurotic/Very Neurotic and Careful Shooter/Trigger-Happy each get their own gene, so nothing gets skipped.
+This mod dynamically scans every trait in your game, vanilla or modded, and generates a dedicated gene to force it. Multi-degree traits like Neurotic/Very Neurotic and Careful Shooter/Trigger-Happy each get their own gene, so nothing gets skipped.
 
 FEATURES
-- One gene per trait degree — full coverage, no gaps
+- One gene per trait degree : full coverage, no gaps
 - Works automatically with modded traits (names may vary)
 - Forced-trait genes won't appear in random genepack or xenogerm drops — they're for building your ideal xenotype, not cluttering merchant inventories
 - Genes are sorted to the bottom of the gene picker to stay out of your way
@@ -47,6 +47,6 @@ GitHub: https://github.com/theAxolotlAntics/RimWorldMod-SmartGenes
     <li>Ludeon.RimWorld.Anomaly</li>
   </loadAfter>
 
-  <modVersion>3.1</modVersion>
+  <modVersion>3.1.2</modVersion>
 
 </ModMetaData>
