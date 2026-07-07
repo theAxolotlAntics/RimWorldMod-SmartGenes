@@ -15,9 +15,6 @@ namespace Smartgene
             Harmony harmony = new Harmony("Axolotl.SmartGenes");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-            // Confirm the patch actually landed.
-            // If you see FAILED below, your old DLL is still deployed — rebuild and
-            // copy the new Smartgene.dll to Common/Assemblies/ before testing.
             MethodInfo original = AccessTools.Method(typeof(TraitDef), nameof(TraitDef.DataAtDegree));
             var patches = Harmony.GetPatchInfo(original);
             if (patches != null && patches.Prefixes.Count > 0)
@@ -41,21 +38,18 @@ namespace Smartgene
     {
         public static bool Prefix(TraitDef __instance, int degree, ref TraitDegreeData __result)
         {
-            // Guard against malformed TraitDefs with no degree data at all
             if (__instance.degreeDatas == null || __instance.degreeDatas.Count == 0)
             {
                 __result = null;
                 return false;
             }
 
-            // If the requested degree exists, let the original method run normally
             foreach (TraitDegreeData data in __instance.degreeDatas)
             {
                 if (data.degree == degree)
                     return true;
             }
 
-            // Degree not found — return first defined degree silently, no log warning
             __result = __instance.degreeDatas[0];
             return false;
         }
@@ -84,20 +78,13 @@ namespace Smartgene
                     {
                         string defName = $"{DEF_PREFIX}{trait.defName}_deg{degreeData.degree}";
 
-                        // Skip if our prefixed name already exists (e.g. from a previous load)
                         if (DefDatabase<GeneDef>.GetNamedSilentFail(defName) != null)
                             continue;
 
-                        // Also skip if another mod already defines a GeneDef with the same
-                        // bare trait name (e.g. "Delicate", "VRE_Flirty") — adding ours on
-                        // top would cause a duplicate def error.
                         if (DefDatabase<GeneDef>.GetNamedSilentFail(trait.defName) != null)
                             continue;
 
-                        // Resolve display label through the full fallback chain:
-                        // 1. degreeData.label             — localised degree label (e.g. "Night owl")
-                        // 2. trait.LabelCap               — trait-level label if degree has none
-                        // 3. trait.defName                — last resort (raw, e.g. "VTE_AbsentMinded")
+                        // Resolve display label
                         string traitLabel;
                         if (!string.IsNullOrEmpty(degreeData.label))
                             traitLabel = degreeData.label.CapitalizeFirst();
@@ -106,17 +93,29 @@ namespace Smartgene
                         else
                             traitLabel = trait.defName;
 
-                        string geneLabel = $"Forced Trait: {traitLabel}";
-
-                        string traitDesc = !string.IsNullOrEmpty(degreeData.description)
+                        // Resolve trait description, passing null for the pawn so that
+                        // {PAWN_nameDef}, {PAWN_pronoun} etc. are replaced with blanks
+                        // rather than showing raw tags in the gene tooltip.
+                        string rawDesc = !string.IsNullOrEmpty(degreeData.description)
                             ? degreeData.description
                             : !string.IsNullOrEmpty(trait.description)
                                 ? trait.description
                                 : null;
 
-                        string geneDesc = traitDesc != null
-                            ? $"Forces the trait: {traitLabel}\n\n{traitDesc}"
-                            : $"Carriers of this gene always have the trait: {traitLabel}";
+                        string resolvedDesc = rawDesc?.AdjustedFor(null);
+
+                        // Find which mod this trait comes from.
+                        // modContentPack is null for base-game content, so we fall back to "RimWorld".
+                        string modSource = trait.modContentPack?.Name ?? "RimWorld";
+
+                        // Build the full gene description
+                        string geneDesc;
+                        if (resolvedDesc != null)
+                            geneDesc = $"Forces the trait: {traitLabel}\n\n{resolvedDesc}\n\n<color=#aaaaaa>Source: {modSource}</color>";
+                        else
+                            geneDesc = $"Carriers of this gene always have the trait: {traitLabel}\n\n<color=#aaaaaa>Source: {modSource}</color>";
+
+                        string geneLabel = $"Forced Trait: {traitLabel}";
 
                         var traitLink = new GeneticTraitData
                         {
