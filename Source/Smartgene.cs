@@ -46,13 +46,33 @@ namespace Smartgene
                         if (DefDatabase<GeneDef>.GetNamedSilentFail(defName) != null)
                             continue;
 
-                        // Build a human-readable label.
-                        // If there's only one degree, just use the trait label.
-                        // If there are multiple, append the degree label so the user can tell them apart.
-                        string traitLabel = degreeData.label ?? trait.label ?? trait.defName;
-                        string geneLabel = trait.degreeDatas.Count > 1
-                            ? $"Forced Trait: {traitLabel}"
-                            : $"Forced Trait: {trait.label ?? trait.defName}";
+                        // Use in-game trait name.
+                        // degreeData.label is the translation key (e.g. "NightOwl") — GetLabelCap()
+                        // runs it through the translation/tokenisation system to get the proper
+                        // display string (e.g. "Night owl"). Fall back through trait.LabelCap
+                        // and finally the raw defName if nothing is available.
+                        string traitLabel = !string.IsNullOrEmpty(degreeData.label)
+                            ? degreeData.GetLabelCap(trait)
+                            : !string.IsNullOrEmpty(trait.label)
+                                ? trait.LabelCap
+                                : trait.defName;
+
+                        string geneLabel = $"Forced Trait: {traitLabel}";
+
+                        // Pull the trait's own description text directly from its degree data.
+                        // This prevents RimWorld's tooltip renderer from trying to look the trait
+                        // up at degree 0 (which doesn't exist for traits like PsychicSensitivity)
+                        // which would otherwise spam the log with:
+                        // "found no data at degree 0, returning first defined."
+                        string traitDesc = !string.IsNullOrEmpty(degreeData.description)
+                            ? degreeData.description
+                            : !string.IsNullOrEmpty(trait.description)
+                                ? trait.description
+                                : null;
+
+                        string geneDesc = traitDesc != null
+                            ? $"Forces the trait: {traitLabel}\n\n{traitDesc}"
+                            : $"Carriers of this gene always have the trait: {traitLabel}";
 
                         var traitLink = new GeneticTraitData
                         {
@@ -64,7 +84,7 @@ namespace Smartgene
                         {
                             defName = defName,
                             label = geneLabel,
-                            description = $"Carriers of this gene always have the trait: {traitLabel}",
+                            description = geneDesc,
                             labelShortAdj = $"forced {traitLabel}",
                             iconPath = "UI/forceT",
                             displayCategory = category,
