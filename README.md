@@ -13,7 +13,7 @@ A RimWorld mod that dynamically generates a forced-trait gene for every trait in
 
 ## What It Does
 
-When the game loads, Smart Genes scans every `TraitDef` present — from vanilla RimWorld, Biotech, and any mods you have installed — and generates a gene for each one. Equip a pawn with that gene, and they'll always have that trait, no matter what.
+When the game loads, Smart Genes scans every `TraitDef` present from vanilla RimWorld, Biotech, and any mods you have installed, and generates a gene for each one. Equip a pawn with that gene, and they'll always have that trait, no matter what.
 
 Multi-degree traits (like Neurotic / Very Neurotic, or Trigger-Happy / Careful Shooter) each get their **own dedicated gene**, one per degree, so nothing is skipped.
 
@@ -119,4 +119,4 @@ See [Change Notes on Steam](https://steamcommunity.com/sharedfiles/filedetails/c
 
 ---
 
-*Made with 💀 by [Axolotl](https://steamcommunity.com/profiles/76561199216208436)*
+*Made by [Axolotl](https://steamcommunity.com/profiles/76561199216208436)*
