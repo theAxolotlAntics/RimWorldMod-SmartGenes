@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -37,7 +37,8 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="0Harmony">
-  <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\0Harmony.dll</HintPath>
+      <HintPath>..\..\..\RimWorldWin64_Data\Managed\0Harmony.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <None Include="..\About\**" />
     <None Include="..\Common\Defs\**" />
@@ -54,4 +55,18 @@
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
+  <!--
+    Post-build: copies the compiled DLL straight into the mod's Assemblies folder.
+    Runs on every successful build so you can never test a stale DLL.
+  -->
+  <Target Name="DeployToMod" AfterTargets="Build">
+    <Copy
+      SourceFiles="$(OutputPath)$(AssemblyName).dll"
+      DestinationFolder="$(MSBuildProjectDirectory)\..\Common\Assemblies\"
+      SkipUnchangedFiles="false"
+      OverwriteReadOnlyFiles="true" />
+    <Message Text="[SmartGenes] DLL deployed to Common/Assemblies/" Importance="high" />
+  </Target>
+
 </Project>

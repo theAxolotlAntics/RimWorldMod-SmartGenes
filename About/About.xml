@@ -32,6 +32,11 @@ GitHub: https://github.com/theAxolotlAntics/RimWorldMod-SmartGenes
   </supportedVersions>
 
   <modDependencies>
+      <li>
+    <packageId>brrainz.harmony</packageId>
+    <displayName>Harmony</displayName>
+    <steamWorkshopUrl>steam://url/CommunityFilePage/2009463</steamWorkshopUrl>
+    </li>
     <li>
       <packageId>Ludeon.RimWorld.Biotech</packageId>
       <displayName>Biotech</displayName>

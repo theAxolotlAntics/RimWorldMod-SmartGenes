@@ -12,41 +12,58 @@ namespace Smartgene
     {
         static StartUp()
         {
-            // Apply Harmony patches first, then generate genes
-            new Harmony("Axolotl.SmartGenes").PatchAll(Assembly.GetExecutingAssembly());
+            Harmony harmony = new Harmony("Axolotl.SmartGenes");
+            harmony.PatchAll(Assembly.GetExecutingAssembly());
+
+            // Confirm the patch actually landed.
+            // If you see FAILED below, your old DLL is still deployed — rebuild and
+            // copy the new Smartgene.dll to Common/Assemblies/ before testing.
+            MethodInfo original = AccessTools.Method(typeof(TraitDef), nameof(TraitDef.DataAtDegree));
+            var patches = Harmony.GetPatchInfo(original);
+            if (patches != null && patches.Prefixes.Count > 0)
+                Log.Message("[SmartGenes] Harmony patch applied successfully. Degree-0 spam suppressed.");
+            else
+                Log.Error("[SmartGenes] CRITICAL: Harmony patch FAILED. Old DLL may still be deployed. " +
+                          "Rebuild the project and ensure Smartgene.dll in Common/Assemblies/ is up to date.");
+
             Smartgene.GenerateGenes();
         }
     }
 
     /// <summary>
     /// Silences the "found no data at degree 0, returning first defined" log spam.
-    /// RimWorld's gene tooltip calls TraitDef.DataAtDegree(0) to render the
-    /// "Forced traits:" section, but many traits have no degree 0 defined.
-    /// We patch the method to return the first defined degree silently instead
-    /// of logging a warning every time the player mouses over a gene card.
+    /// RimWorld calls TraitDef.DataAtDegree(0) from multiple places (tooltip rendering,
+    /// stat workers, condition checkers) every tick for any trait that lacks degree 0.
+    /// We intercept and return the first defined degree silently.
     /// </summary>
     [HarmonyPatch(typeof(TraitDef), nameof(TraitDef.DataAtDegree))]
     public static class Patch_TraitDef_DataAtDegree_Silence
     {
         public static bool Prefix(TraitDef __instance, int degree, ref TraitDegreeData __result)
         {
-            // Check whether this degree actually exists
+            // Guard against malformed TraitDefs with no degree data at all
+            if (__instance.degreeDatas == null || __instance.degreeDatas.Count == 0)
+            {
+                __result = null;
+                return false;
+            }
+
+            // If the requested degree exists, let the original method run normally
             foreach (TraitDegreeData data in __instance.degreeDatas)
             {
                 if (data.degree == degree)
-                    return true; // Degree found — let the original method run normally
+                    return true;
             }
 
-            // Degree not found — return first defined degree silently (no log warning)
+            // Degree not found — return first defined degree silently, no log warning
             __result = __instance.degreeDatas[0];
-            return false; // Skip original method
+            return false;
         }
     }
 
     public static class Smartgene
     {
         private const string DEF_PREFIX = "SG_ForcedTrait_";
-        // High starting order pushes these genes below cosmetic/standard genes in the picker
         private const int BASE_DISPLAY_ORDER = 404;
         private const int DISPLAY_ORDER_STEP = 10;
 
@@ -67,14 +84,20 @@ namespace Smartgene
                     {
                         string defName = $"{DEF_PREFIX}{trait.defName}_deg{degreeData.degree}";
 
+                        // Skip if our prefixed name already exists (e.g. from a previous load)
                         if (DefDatabase<GeneDef>.GetNamedSilentFail(defName) != null)
                             continue;
 
+                        // Also skip if another mod already defines a GeneDef with the same
+                        // bare trait name (e.g. "Delicate", "VRE_Flirty") — adding ours on
+                        // top would cause a duplicate def error.
+                        if (DefDatabase<GeneDef>.GetNamedSilentFail(trait.defName) != null)
+                            continue;
+
                         // Resolve display label through the full fallback chain:
-                        // 1. degreeData.GetLabelCap(trait) — proper localised degree label (e.g. "Night owl")
-                        // 2. trait.LabelCap                — trait-level label if degree has none
-                        // 3. trait.label                   — unlocalised fallback
-                        // 4. trait.defName                 — last resort (raw, e.g. "VTE_AbsentMinded")
+                        // 1. degreeData.GetLabelCap(trait) — localised degree label (e.g. "Night owl")
+                        // 2. trait.LabelCap               — trait-level label if degree has none
+                        // 3. trait.defName                — last resort (raw, e.g. "VTE_AbsentMinded")
                         string traitLabel;
                         if (!string.IsNullOrEmpty(degreeData.label))
                             traitLabel = degreeData.GetLabelCap(trait);
@@ -85,8 +108,6 @@ namespace Smartgene
 
                         string geneLabel = $"Forced Trait: {traitLabel}";
 
-                        // Bake description text onto the gene so the tooltip renderer
-                        // doesn't need to call DataAtDegree at all for the description field.
                         string traitDesc = !string.IsNullOrEmpty(degreeData.description)
                             ? degreeData.description
                             : !string.IsNullOrEmpty(trait.description)
@@ -116,7 +137,6 @@ namespace Smartgene
                             biostatMet = 0,
                             biostatArc = 0,
                             displayOrderInCategory = displayOrder,
-                            // Excluded from random xenogerm/genepack loot; still selectable in editor
                             selectionWeight = 0
                         };
 
