@@ -36,6 +36,9 @@
       <HintPath>..\..\..\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="0Harmony">
+  <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\0Harmony.dll</HintPath>
+    </Reference>
     <None Include="..\About\**" />
     <None Include="..\Common\Defs\**" />
     <None Include="..\Common\Languages\**" />

@@ -1,6 +1,8 @@
+using HarmonyLib;
 using RimWorld;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Verse;
 
 namespace Smartgene
@@ -10,16 +12,41 @@ namespace Smartgene
     {
         static StartUp()
         {
+            // Apply Harmony patches first, then generate genes
+            new Harmony("Axolotl.SmartGenes").PatchAll(Assembly.GetExecutingAssembly());
             Smartgene.GenerateGenes();
+        }
+    }
+
+    /// <summary>
+    /// Silences the "found no data at degree 0, returning first defined" log spam.
+    /// RimWorld's gene tooltip calls TraitDef.DataAtDegree(0) to render the
+    /// "Forced traits:" section, but many traits have no degree 0 defined.
+    /// We patch the method to return the first defined degree silently instead
+    /// of logging a warning every time the player mouses over a gene card.
+    /// </summary>
+    [HarmonyPatch(typeof(TraitDef), nameof(TraitDef.DataAtDegree))]
+    public static class Patch_TraitDef_DataAtDegree_Silence
+    {
+        public static bool Prefix(TraitDef __instance, int degree, ref TraitDegreeData __result)
+        {
+            // Check whether this degree actually exists
+            foreach (TraitDegreeData data in __instance.degreeDatas)
+            {
+                if (data.degree == degree)
+                    return true; // Degree found — let the original method run normally
+            }
+
+            // Degree not found — return first defined degree silently (no log warning)
+            __result = __instance.degreeDatas[0];
+            return false; // Skip original method
         }
     }
 
     public static class Smartgene
     {
-        // Prefix all generated defNames to avoid collisions with other mods
         private const string DEF_PREFIX = "SG_ForcedTrait_";
-        // A high starting order pushes these genes to the bottom of the gene picker,
-        // below cosmetic and other standard genes which typically use lower values.
+        // High starting order pushes these genes below cosmetic/standard genes in the picker
         private const int BASE_DISPLAY_ORDER = 404;
         private const int DISPLAY_ORDER_STEP = 10;
 
@@ -34,36 +61,32 @@ namespace Smartgene
 
             foreach (TraitDef trait in DefDatabase<TraitDef>.AllDefs)
             {
-                // TraitDef.degreeDatas is the list of all defined degrees for this trait.
-                // We generate one gene per degree so nothing gets skipped.
                 foreach (TraitDegreeData degreeData in trait.degreeDatas)
                 {
                     try
                     {
                         string defName = $"{DEF_PREFIX}{trait.defName}_deg{degreeData.degree}";
 
-                        // Skip if this defName is already registered (e.g. loaded from a saved def)
                         if (DefDatabase<GeneDef>.GetNamedSilentFail(defName) != null)
                             continue;
 
-                        // Use in-game trait name.
-                        // degreeData.label is the translation key (e.g. "NightOwl") — GetLabelCap()
-                        // runs it through the translation/tokenisation system to get the proper
-                        // display string (e.g. "Night owl"). Fall back through trait.LabelCap
-                        // and finally the raw defName if nothing is available.
-                        string traitLabel = !string.IsNullOrEmpty(degreeData.label)
-                            ? degreeData.GetLabelCap(trait)
-                            : !string.IsNullOrEmpty(trait.label)
-                                ? trait.LabelCap
-                                : trait.defName;
+                        // Resolve display label through the full fallback chain:
+                        // 1. degreeData.GetLabelCap(trait) — proper localised degree label (e.g. "Night owl")
+                        // 2. trait.LabelCap                — trait-level label if degree has none
+                        // 3. trait.label                   — unlocalised fallback
+                        // 4. trait.defName                 — last resort (raw, e.g. "VTE_AbsentMinded")
+                        string traitLabel;
+                        if (!string.IsNullOrEmpty(degreeData.label))
+                            traitLabel = degreeData.GetLabelCap(trait);
+                        else if (!string.IsNullOrEmpty(trait.label))
+                            traitLabel = trait.LabelCap.ToString();
+                        else
+                            traitLabel = trait.defName;
 
                         string geneLabel = $"Forced Trait: {traitLabel}";
 
-                        // Pull the trait's own description text directly from its degree data.
-                        // This prevents RimWorld's tooltip renderer from trying to look the trait
-                        // up at degree 0 (which doesn't exist for traits like PsychicSensitivity)
-                        // which would otherwise spam the log with:
-                        // "found no data at degree 0, returning first defined."
+                        // Bake description text onto the gene so the tooltip renderer
+                        // doesn't need to call DataAtDegree at all for the description field.
                         string traitDesc = !string.IsNullOrEmpty(degreeData.description)
                             ? degreeData.description
                             : !string.IsNullOrEmpty(trait.description)
@@ -93,9 +116,7 @@ namespace Smartgene
                             biostatMet = 0,
                             biostatArc = 0,
                             displayOrderInCategory = displayOrder,
-                            // Prevents this gene from appearing in randomly generated
-                            // xenogerms and genepack loot. It remains fully selectable
-                            // in the xenotype editor.
+                            // Excluded from random xenogerm/genepack loot; still selectable in editor
                             selectionWeight = 0
                         };
 
@@ -123,7 +144,6 @@ namespace Smartgene
         {
             const string categoryDefName = "SmartGenes_ForcedTraits";
 
-            // Return existing category if already registered (handles hot-reload edge cases)
             GeneCategoryDef existing = DefDatabase<GeneCategoryDef>.GetNamedSilentFail(categoryDefName);
             if (existing != null)
                 return existing;
