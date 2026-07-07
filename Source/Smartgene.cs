@@ -95,12 +95,12 @@ namespace Smartgene
                             continue;
 
                         // Resolve display label through the full fallback chain:
-                        // 1. degreeData.GetLabelCap(trait) — localised degree label (e.g. "Night owl")
+                        // 1. degreeData.label             — localised degree label (e.g. "Night owl")
                         // 2. trait.LabelCap               — trait-level label if degree has none
                         // 3. trait.defName                — last resort (raw, e.g. "VTE_AbsentMinded")
                         string traitLabel;
                         if (!string.IsNullOrEmpty(degreeData.label))
-                            traitLabel = degreeData.GetLabelCap(trait);
+                            traitLabel = degreeData.label.CapitalizeFirst();
                         else if (!string.IsNullOrEmpty(trait.label))
                             traitLabel = trait.LabelCap.ToString();
                         else
