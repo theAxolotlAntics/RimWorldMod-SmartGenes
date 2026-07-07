@@ -1,30 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
 
-  <!-- content goes here -->
-	<packageId>Axolotl.SmartGenes</packageId>
-	<name>Smart Genes</name>
-	<author>Axolotl</author>
-	<description>
-A mod that allows genes to dynamically generate for every trait present in your game.
-Ever wanted your hyperactive xenotypes to always be trigger happy? Now you can do that and more in one mod.
-This is an attempt at making a mod that gives the player more control over xenotypes and genes.
-It automatically generates genes to force every trait, modded or unmodded, that you would see in the game.
-Genes may take awhile to load, and I would reccomend collapsing the tab in the editor, cause there are a lot of traits.
-*ONLY TESTED IN 1.5 and 1.6*</description>
-	<supportedVersions>
-		<li>1.5</li>
-		<li>1.6</li>
-	</supportedVersions>
-	<modDependencies>
-	<li>
-		<packageId>Ludeon.RimWorld.Biotech</packageId>
-		<displayName>Biotech</displayName>
-	</li>
-	</modDependencies>
-	<loadAfter>
-	<li>Ludeon.RimWorld</li>
-	<li>Ludeon.RimWorld.Biotech</li>
-	</loadAfter>
-	<modVersion>3.01</modVersion>
+  <packageId>Axolotl.SmartGenes</packageId>
+  <name>Smart Genes</name>
+  <author>Axolotl</author>
+
+  <description>
+Ever wanted your tortured artists to always be very neurotic and too smart? Now you can have that! Use genes to force traits and create a custom xenotype optimized to suffer. :D
+
+This mod dynamically scans every trait in your game — vanilla or modded — and generates a dedicated gene to force it. Multi-degree traits like Neurotic/Very Neurotic and Careful Shooter/Trigger-Happy each get their own gene, so nothing gets skipped.
+
+FEATURES
+- One gene per trait degree — full coverage, no gaps
+- Works automatically with modded traits (names may vary)
+- Forced-trait genes won't appear in random genepack or xenogerm drops — they're for building your ideal xenotype, not cluttering merchant inventories
+- Genes are sorted to the bottom of the gene picker to stay out of your way
+
+NOTES
+- There are a lot of genes. Collapsing the SmartGenes category in the xenotype editor is strongly recommended
+- Smart Genes must load AFTER any mod whose traits you want covered
+- May log harmless warnings if another mod already defines a forced-trait gene with a conflicting name
+
+Requires Biotech. Tested on 1.5 and 1.6.
+
+GitHub: https://github.com/theAxolotlAntics/RimWorldMod-SmartGenes
+  </description>
+
+  <supportedVersions>
+    <li>1.5</li>
+    <li>1.6</li>
+  </supportedVersions>
+
+  <modDependencies>
+    <li>
+      <packageId>Ludeon.RimWorld.Biotech</packageId>
+      <displayName>Biotech</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/1826140</steamWorkshopUrl>
+    </li>
+  </modDependencies>
+
+  <loadAfter>
+    <li>Ludeon.RimWorld</li>
+    <li>Ludeon.RimWorld.Royalty</li>
+    <li>Ludeon.RimWorld.Ideology</li>
+    <li>Ludeon.RimWorld.Biotech</li>
+    <li>Ludeon.RimWorld.Anomaly</li>
+  </loadAfter>
+
+  <modVersion>3.1</modVersion>
+
 </ModMetaData>
