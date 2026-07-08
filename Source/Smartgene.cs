@@ -93,16 +93,12 @@ namespace Smartgene
                         else
                             traitLabel = trait.defName;
 
-                        // Resolve trait description, passing null for the pawn so that
-                        // {PAWN_nameDef}, {PAWN_pronoun} etc. are replaced with blanks
-                        // rather than showing raw tags in the gene tooltip.
-                        string rawDesc = !string.IsNullOrEmpty(degreeData.description)
+                        // Resolve trait description
+                        string traitDesc = !string.IsNullOrEmpty(degreeData.description)
                             ? degreeData.description
                             : !string.IsNullOrEmpty(trait.description)
                                 ? trait.description
                                 : null;
-
-                        string resolvedDesc = rawDesc?.AdjustedFor(null);
 
                         // Find which mod this trait comes from.
                         // modContentPack is null for base-game content, so we fall back to "RimWorld".
@@ -110,8 +106,8 @@ namespace Smartgene
 
                         // Build the full gene description
                         string geneDesc;
-                        if (resolvedDesc != null)
-                            geneDesc = $"Forces the trait: {traitLabel}\n\n{resolvedDesc}\n\n<color=#aaaaaa>Source: {modSource}</color>";
+                        if (traitDesc != null)
+                            geneDesc = $"Forces the trait: {traitLabel}\n\n{traitDesc}\n\n<color=#aaaaaa>Source: {modSource}</color>";
                         else
                             geneDesc = $"Carriers of this gene always have the trait: {traitLabel}\n\n<color=#aaaaaa>Source: {modSource}</color>";
 
